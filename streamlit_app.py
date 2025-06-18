@@ -42,9 +42,26 @@ st.dataframe(top10)
 st.subheader("View All Predictions")
 st.dataframe(df[['Country', 'Predicted_Death_Rate', 'Total_Death_Rate']].sort_values(by='Predicted_Death_Rate', ascending=False))
 
-st.subheader("🔍 Predict for a Specific Country")
-selected_country = st.selectbox("Select a Country", df['Country'].unique())
-selected_row = df[df['Country'] == selected_country]
+import matplotlib.pyplot as plt
 
-st.metric(label="Predicted Death Rate", value=f"{selected_row['Predicted_Death_Rate'].values[0]:.2f}")
-st.metric(label="Reported Death Rate", value=f"{selected_row['Total_Death_Rate'].values[0]:.2f}")
+country = st.selectbox("Choose a Country", df['Country'].unique())
+selected = df[df['Country'] == country]
+
+st.metric("Predicted Death Rate", f"{selected['Predicted_Death_Rate'].values[0]:.2f}")
+st.metric("Reported Death Rate", f"{selected['Total_Death_Rate'].values[0]:.2f}")
+
+# Visual: Breakdown by disorder
+features = selected[[
+    'Dementia (<65)', 'Dementia (65+)',
+    'Alcohol disorders (<65)', 'Alcohol disorders (65+)',
+    'Drug dependence (<65)', 'Drug dependence (65+)',
+]].T
+features.columns = ['Death Rate']
+
+fig, ax = plt.subplots(figsize=(8, 5))
+features.plot(kind='bar', ax=ax, legend=False, color='coral')
+ax.set_title(f"Mental Health Death Rate Breakdown – {country}")
+ax.set_ylabel("Death Rate per 100k")
+ax.grid(axis='y')
+st.pyplot(fig)
+
