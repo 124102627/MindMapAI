@@ -41,3 +41,10 @@ st.dataframe(top10)
 
 st.subheader("View All Predictions")
 st.dataframe(df[['Country', 'Predicted_Death_Rate', 'Total_Death_Rate']].sort_values(by='Predicted_Death_Rate', ascending=False))
+
+st.subheader("🔍 Predict for a Specific Country")
+selected_country = st.selectbox("Select a Country", df['Country'].unique())
+selected_row = df[df['Country'] == selected_country]
+
+st.metric(label="Predicted Death Rate", value=f"{selected_row['Predicted_Death_Rate'].values[0]:.2f}")
+st.metric(label="Reported Death Rate", value=f"{selected_row['Total_Death_Rate'].values[0]:.2f}")
