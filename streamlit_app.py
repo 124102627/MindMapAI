@@ -30,3 +30,14 @@ def load_and_train_model():
 
     df['Predicted_Death_Rate'] = model.predict(X_scaled)
     return df, model, scaler
+
+st.title("🔮 Country-Level Mental Health Death Rate Prediction")
+
+df, model, scaler = load_and_train_model()
+
+st.subheader("Top 10 Countries with Highest Predicted Death Rates")
+top10 = df[['Country', 'Predicted_Death_Rate']].sort_values(by='Predicted_Death_Rate', ascending=False).head(10)
+st.dataframe(top10)
+
+st.subheader("View All Predictions")
+st.dataframe(df[['Country', 'Predicted_Death_Rate', 'Total_Death_Rate']].sort_values(by='Predicted_Death_Rate', ascending=False))
