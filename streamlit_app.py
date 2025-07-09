@@ -11,7 +11,7 @@ from sklearn.metrics import mean_squared_error, r2_score
 st.title("MindMap AI – Mental Health Risk Forecasting")
 st.markdown("Predicting country-level mental health risks using Random Forest and XGBoost.")
 
-df = pd.read_csv("https://raw.githubusercontent.com/124102627/MindMapAI/main/cleaned_mental_health_data.csv")
+df = pd.read_csv("cleaned_mental_health_data.csv")
 
 # Sidebar filter
 country_filter = st.sidebar.multiselect("Select Countries", df["Country"].unique(), default=df["Country"].unique())
