@@ -1,67 +1,73 @@
-import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error, r2_score
 import streamlit as st
-
-st.set_page_config(page_title="MindMap AI", layout="wide")
-
-@st.cache_data
-def load_and_train_model():
-    url = "https://raw.githubusercontent.com/124102627/MindMapAI/master/standardised_mental_health_death_rates_2021.csv"
-    df = pd.read_csv(url)
-
-    feature_cols = [
-        'Dementia (<65)', 'Dementia (65+)',
-        'Alcohol disorders (<65)', 'Alcohol disorders (65+)',
-        'Drug dependence (<65)', 'Drug dependence (65+)'
-    ]
-    df['Total_Death_Rate'] = df[feature_cols].sum(axis=1)
-
-    X = df[feature_cols]
-    y = df['Total_Death_Rate']
-
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X_scaled, y)
-
-    df['Predicted_Death_Rate'] = model.predict(X_scaled)
-    return df, model, scaler
-
-st.title("🔮 Country-Level Mental Health Death Rate Prediction")
-
-df, model, scaler = load_and_train_model()
-
-st.subheader("Top 10 Countries with Highest Predicted Death Rates")
-top10 = df[['Country', 'Predicted_Death_Rate']].sort_values(by='Predicted_Death_Rate', ascending=False).head(10)
-st.dataframe(top10)
-
-st.subheader("View All Predictions")
-st.dataframe(df[['Country', 'Predicted_Death_Rate', 'Total_Death_Rate']].sort_values(by='Predicted_Death_Rate', ascending=False))
-
+import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from xgboost import XGBRegressor
+from sklearn.metrics import mean_squared_error, r2_score
 
-country = st.selectbox("Choose a Country", df['Country'].unique())
-selected = df[df['Country'] == country]
+# Load data
+st.title("MindMap AI – Mental Health Risk Forecasting")
+st.markdown("Predicting country-level mental health risks using Random Forest and XGBoost.")
 
-st.metric("Predicted Death Rate", f"{selected['Predicted_Death_Rate'].values[0]:.2f}")
-st.metric("Reported Death Rate", f"{selected['Total_Death_Rate'].values[0]:.2f}")
+df = pd.read_csv("https://raw.githubusercontent.com/124102627/MindMapAI/main/cleaned_mental_health_data.csv")
 
-# Visual: Breakdown by disorder
-features = selected[[
-    'Dementia (<65)', 'Dementia (65+)',
-    'Alcohol disorders (<65)', 'Alcohol disorders (65+)',
-    'Drug dependence (<65)', 'Drug dependence (65+)',
-]].T
-features.columns = ['Death Rate']
+# Sidebar filter
+country_filter = st.sidebar.multiselect("Select Countries", df["Country"].unique(), default=df["Country"].unique())
 
-fig, ax = plt.subplots(figsize=(8, 5))
-features.plot(kind='bar', ax=ax, legend=False, color='coral')
-ax.set_title(f"Mental Health Death Rate Breakdown – {country}")
-ax.set_ylabel("Death Rate per 100k")
-ax.grid(axis='y')
-st.pyplot(fig)
+# Filtered data
+filtered_df = df[df["Country"].isin(country_filter)]
+
+# Feature & target split
+X = filtered_df.drop(columns=["Country", "Self Harm Rate"])
+y = filtered_df["Self Harm Rate"]
+
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Models
+rf = RandomForestRegressor(random_state=42)
+xgb = XGBRegressor(objective='reg:squarederror', random_state=42)
+
+rf.fit(X_train, y_train)
+xgb.fit(X_train, y_train)
+
+# Predictions
+rf_preds = rf.predict(X_test)
+xgb_preds = xgb.predict(X_test)
+
+# Model Evaluation
+st.subheader("Model Performance")
+col1, col2 = st.columns(2)
+col1.metric("Random Forest R²", f"{r2_score(y_test, rf_preds):.2f}")
+col1.metric("Random Forest RMSE", f"{mean_squared_error(y_test, rf_preds, squared=False):.2f}")
+
+col2.metric("XGBoost R²", f"{r2_score(y_test, xgb_preds):.2f}")
+col2.metric("XGBoost RMSE", f"{mean_squared_error(y_test, xgb_preds, squared=False):.2f}")
+
+# Predict full set with Random Forest
+df["Predicted Self Harm Rate"] = rf.predict(df.drop(columns=["Country", "Self Harm Rate"]))
+
+# Show Top 5 countries at risk
+st.subheader("Top 5 Predicted High-Risk Countries (Self Harm Rate)")
+top5 = df.sort_values(by="Predicted Self Harm Rate", ascending=False).head(5)
+st.dataframe(top5[["Country", "Predicted Self Harm Rate"]])
+
+# Plot Predictions
+st.subheader("Actual vs Predicted – Random Forest")
+plt.figure(figsize=(8,6))
+sns.scatterplot(x=y_test, y=rf_preds)
+plt.xlabel("Actual Self Harm Rate")
+plt.ylabel("Predicted Self Harm Rate")
+plt.title("Random Forest Prediction Accuracy")
+st.pyplot(plt)
+
+# Feature Importance
+st.subheader("Feature Importance – Random Forest")
+importance = pd.Series(rf.feature_importances_, index=X.columns)
+st.bar_chart(importance.sort_values(ascending=True))
+
+# About
+st.sidebar.markdown("Created by Group 28R – MindMap AI")
 
